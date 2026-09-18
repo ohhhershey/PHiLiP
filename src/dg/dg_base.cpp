@@ -1030,19 +1030,24 @@ typename std::enable_if<!std::is_same<adtype, double>::value,void>::type
     using TH = codi::TapeHelper<adtype>;
     TH th;
     typename adtype::TapeType &tape =  adtype::getGlobalTape(); 
-    if (compute_dRdW || compute_dRdX || compute_d2R) {
+    if (compute_dRdW || compute_dRdW_matrix_free || compute_dRdX || compute_d2R) {
         th.startRecording();
     }
-    
+    adtype t = 0.0;
+    th.registerInput(t);
     std::vector<adtype> local_solution(n_soln_dofs);
     for (unsigned int idof = 0; idof < n_soln_dofs; ++idof) {
         const real val = this->solution(soln_dofs_indices[idof]);
         local_solution[idof] = val;
-
+        if (compute_dRdW_matrix_free) {
+            const real  v = this->Jacobian_direction(global_dof);
+            local_solution[idof] = val+ v*t;
+    
+        }
         if (compute_dRdW || compute_d2R) {
-            th.registerInput(local_solution[idof]);
+            th.registerInput(local_solution[idof]); 
         } else {
-            tape.deactivateValue(local_solution[idof]);
+            tape.deactivateValue(local_solution[idof]); 
         }
     }
     
@@ -2596,7 +2601,7 @@ void DGBase<dim,nspecies,real,MeshType>::reinit_operators_for_cell_residual_loop
 }
 
 template <int dim, int nspecies, typename real, typename MeshType>
-void DGBase<dim,nspecies,real,MeshType>::assemble_residual (const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const double CFL_mass)
+void DGBase<dim,nspecies,real,MeshType>::assemble_residual (const bool compute_dRdW, const bool compute_dRdW_matrix_free, const bool compute_dRdX, const bool compute_d2R, const double CFL_mass)
 {
     dealii::deal_II_exceptions::disable_abort_on_exception(); // Allows us to catch negative Jacobians.
     Assert( !(compute_dRdW && compute_dRdX)

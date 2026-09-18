@@ -395,6 +395,9 @@ public:
      */
     dealii::LinearAlgebra::distributed::Vector<double> right_hand_side;
 
+    dealii::LinearAlgebra::distributed::Vector<double> Jacobian_times_vector;
+    dealii::LinearAlgebra::distributed::Vector<double> Jacobian_direction;
+
     dealii::IndexSet locally_owned_dofs; ///< Locally own degrees of freedom
     dealii::IndexSet ghost_dofs; ///< Locally relevant ghost degrees of freedom
     dealii::IndexSet locally_relevant_dofs; ///< Union of locally owned degrees of freedom and relevant ghost degrees of freedom
@@ -568,7 +571,7 @@ public:
      *
      */
     //void assemble_residual_dRdW ();
-    void assemble_residual (const bool compute_dRdW=false, const bool compute_dRdX=false, const bool compute_d2R=false, const double CFL_mass = 0.0);
+    void assemble_residual (const bool compute_dRdW=false, const bool compute_dRdW_matrix_free=false, const bool compute_dRdX=false, const bool compute_d2R=false, const double CFL_mass = 0.0);
 
     /// Used in assemble_residual().
     /** IMPORTANT: This does not fully compute the cell residual since it might not
