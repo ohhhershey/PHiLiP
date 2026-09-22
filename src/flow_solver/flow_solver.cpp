@@ -484,6 +484,50 @@ double FlowSolver<dim, nspecies, nstate>::initialize_unsteady_time_step() const
     return time_step;
 }
 
+template <int dim, int nspecies, int nstate>
+double FlowSolver<dim, nspecies, nstate>::limit_unsteady_time_step(double time_step, unsigned int fixed_time_output_index) const
+{
+    const double current_time = ode_solver->current_time;
+    const double next_time = current_time + time_step;
+
+    // Final time clipping takes priority over exact output times. 
+
+    if (next_time > final_time && flow_solver_param.end_exactly_at_final_time){
+        return final_time - current_time;
+    }
+
+    const bool enforce+exact_output_time =
+        output_solution_at_exact_fixed_times &&
+        do_output_solution_at_fixed_times &&
+        number_of_fixed_times_to_output_solution > 0;
+
+    if (enforce_exact_output_time) {
+        const double desired_time = 
+            output_solution_fixed_times[fixed_time_output_index];
+
+        if (current_time < desired_time && next_time > desired_time) {
+            return desired_time - current_time;
+        }
+    }
+
+    return time_step;
+}
+
+template <int dim, int nspecies, int nstate>
+double FlowSolver<dim, nspecies, nstate>::compute_next_unsteady_time_step(double time_step) const
+{
+    if (flow_solver_param.adaptive_time_step){
+        return flow_solver_case->get_adaptive_time_step(dg);
+    }
+
+    if (flow_solver_param.error_adaptive_time_step){
+        return ode_solver->get_automatic_error_adaptive_time_step(time_step,false);
+    }
+
+    return flow_solver_case->get_constant_time_step(dg);
+}
+
+
 
 template <int dim,int nspecies, int nstate>
 int FlowSolver<dim,nspecies, nstate>::run_unsteady() const
@@ -565,19 +609,8 @@ int FlowSolver<dim,nspecies, nstate>::run_unsteady() const
 
     while(ode_solver->current_time < final_time)
     {
-        time_step = next_time_step; // update time step
+        time_step = limit_unsteady_time_step(next_time_step, index_of_current_desired_fixed_time_to_output_solution);
 
-        // check if we need to decrease the time step
-        if((ode_solver->current_time+time_step) > final_time && flow_solver_param.end_exactly_at_final_time) {
-            // decrease time step to finish exactly at specified final time
-            time_step = final_time - ode_solver->current_time;
-        } else if (this->output_solution_at_exact_fixed_times && (this->do_output_solution_at_fixed_times && (this->number_of_fixed_times_to_output_solution > 0))) {
-            const double next_time = ode_solver->current_time + time_step;
-            const double desired_time = this->output_solution_fixed_times[index_of_current_desired_fixed_time_to_output_solution];
-            // Check if current time is an output time
-            const bool is_output_time = ((ode_solver->current_time<desired_time) && (next_time>desired_time));
-            if(is_output_time) time_step = desired_time - ode_solver->current_time;
-        }
         // update time step in flow_solver_case and DG object
         flow_solver_case->set_time_step(time_step);
         dg->set_unsteady_model_time_step(time_step);
@@ -605,14 +638,7 @@ int FlowSolver<dim,nspecies, nstate>::run_unsteady() const
         }
         //update time step for next iteration Restart files store
         // this value, and solution/restart output schedules use it to look ahead.
-        if(flow_solver_param.adaptive_time_step == true) {
-            next_time_step = flow_solver_case->get_adaptive_time_step(dg);
-        } else if (flow_solver_param.error_adaptive_time_step == true) {
-            next_time_step = ode_solver->get_automatic_error_adaptive_step_size(time_step,false); 
-        } else {
-            next_time_step = flow_solver_case->get_constant_time_step(dg);
-        }
-
+        next_time_step = compute_next_unsteady_time_step(time_step);
 #if PHILIP_DIM>1
         if(flow_solver_param.output_restart_files == true) {
             // check if it's time to write restart files 
