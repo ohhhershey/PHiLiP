@@ -525,8 +525,8 @@ int FlowSolver<dim,nspecies, nstate>::run_unsteady() const
             print_subtask("Initial unsteady data written.");
         }
     }
-
-    // Time advancement loop with on-the-fly post-processing
+    // Keep the proposed next step separate from the step actually taken, which
+    // may be shortened to land on the final time or an exact output time.
     double next_time_step = time_step;
     std::shared_ptr<dealii::TableHandler> timer_values_table = std::make_shared<dealii::TableHandler>();
     print_task_header("Time Advancement");
@@ -574,6 +574,9 @@ int FlowSolver<dim,nspecies, nstate>::run_unsteady() const
 
         ode_solver->step_in_time(time_step,false);
 
+        // Check the write schedule after advancing. Look ahead from the 
+        // updated current time using the completed step size.
+        // Advance the schedule by one interval whenever a write is due.
         bool do_write_unsteady_data_table_file = false;
         if(flow_solver_param.write_unsteady_data_table_file_every_dt_time_intervals > 0.0) {
             const bool is_write_time = ((ode_solver->current_time <= current_desired_time_for_write_unsteady_data_table_file_every_dt_time_intervals) && 
@@ -586,14 +589,12 @@ int FlowSolver<dim,nspecies, nstate>::run_unsteady() const
         } else {
             do_write_unsteady_data_table_file = true;
         }
-        
         //compute unsteady data and write to table at current time step
         if(do_compute_unsteady_data_and_write_to_table){
             flow_solver_case->compute_unsteady_data_and_write_to_table(ode_solver, dg, unsteady_data_table, do_write_unsteady_data_table_file);
         }
-
-        //update time step for next iteration
-
+        //update time step for next iteration Restart files store
+        // this value, and solution/restart output schedules use it to look ahead.
         if(flow_solver_param.adaptive_time_step == true) {
             next_time_step = flow_solver_case->get_adaptive_time_step(dg);
         } else if (flow_solver_param.error_adaptive_time_step == true) {
@@ -634,7 +635,13 @@ int FlowSolver<dim,nspecies, nstate>::run_unsteady() const
                 flow_solver_case->compute_Reynolds_stress(ode_solver, dg, time_step);
             }
         }
-            // check if it's time to write solution output for postprocessing in ParaView
+        // Write the solution for post-processing in ParaView.
+        //
+        // Only one output mode is used. The priority is:
+        //   1. Output every fixed number of iterations.
+        //   2. Output at regular time intervals.
+        //   3. Output at explicitly specified times.
+
         if (ode_param.output_solution_every_x_steps > 0) {
             const bool is_output_iteration = (ode_solver->current_iteration % ode_param.output_solution_every_x_steps == 0);
             if (is_output_iteration) {
