@@ -143,6 +143,15 @@ private:
     /// Converts a double to a string with scientific format and with full precision
     std::string double_to_string(const double value_input) const;
 
+    /// Initializes the time step and checks consistency with restart file. 
+    double initialize_unsteady_time_step() const;
+
+    /// Shortens a time step to land on the final time or an exact output time.
+    double limit_unsteady_time_step(double time_step, unsigned int fixed_time_output_index) const;
+
+    /// Computes the proposed step size for the next iteration. 
+    double compute_next_unsteady_time_step(double time_step) const;
+
 #if PHILIP_DIM>1
     /// Outputs all the necessary restart files
     void output_restart_files(
