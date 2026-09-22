@@ -496,7 +496,7 @@ double FlowSolver<dim, nspecies, nstate>::limit_unsteady_time_step(double time_s
         return final_time - current_time;
     }
 
-    const bool enforce+exact_output_time =
+    const bool enforce_exact_output_time =
         output_solution_at_exact_fixed_times &&
         do_output_solution_at_fixed_times &&
         number_of_fixed_times_to_output_solution > 0;
@@ -521,7 +521,7 @@ double FlowSolver<dim, nspecies, nstate>::compute_next_unsteady_time_step(double
     }
 
     if (flow_solver_param.error_adaptive_time_step){
-        return ode_solver->get_automatic_error_adaptive_time_step(time_step,false);
+        return ode_solver->get_automatic_error_adaptive_step_size(time_step,false);
     }
 
     return flow_solver_case->get_constant_time_step(dg);
