@@ -447,35 +447,9 @@ void FlowSolver<dim,nspecies, nstate>::print_subtask(const std::string &message)
     pcout << "  - " << message << std::endl;
 }
 
-template <int dim,int nspecies, int nstate>
-int FlowSolver<dim,nspecies, nstate>::run_unsteady() const
+template <int dim, int nspecies, int nstate>
+double FlowSolver<dim, nspecies, nstate>::initialize_unsteady_time_step() const
 {
-    print_task_header("Unsteady Flow");
-
-    // Initializing restart related variables
-#if PHILIP_DIM>1
-    double current_desired_time_for_output_restart_files_every_dt_time_intervals = ode_solver->current_time;
-    unsigned int current_restart_file_number = 1;
-    if(flow_solver_param.output_restart_files == true) {
-        if(flow_solver_param.output_restart_files_every_dt_time_intervals > 0.0) {
-            while(current_desired_time_for_output_restart_files_every_dt_time_intervals <= ode_solver->current_time) {
-                current_desired_time_for_output_restart_files_every_dt_time_intervals += flow_solver_param.output_restart_files_every_dt_time_intervals;
-            }
-        }
-    }
-    if(flow_solver_param.restart_computation_from_file == true) {
-        current_restart_file_number = flow_solver_param.restart_file_index + 1;
-    }
-#endif
-
-    // Initialize the time at which we write the unsteady data table
-    double current_desired_time_for_write_unsteady_data_table_file_every_dt_time_intervals = ode_solver->current_time;
-    if(flow_solver_param.write_unsteady_data_table_file_every_dt_time_intervals > 0.0) {
-        while(current_desired_time_for_write_unsteady_data_table_file_every_dt_time_intervals <= ode_solver->current_time) {
-            current_desired_time_for_write_unsteady_data_table_file_every_dt_time_intervals += flow_solver_param.write_unsteady_data_table_file_every_dt_time_intervals;
-        }
-    }
-
     // Initialize time step
     double time_step = 0.0;
     print_task_header("Time-Step Setup");
@@ -506,6 +480,42 @@ int FlowSolver<dim,nspecies, nstate>::run_unsteady() const
     flow_solver_case->set_time_step(time_step);
     dg->set_unsteady_model_time_step(time_step);
     print_subtask("Time-step initialization complete.");
+
+    return time_step;
+}
+
+
+template <int dim,int nspecies, int nstate>
+int FlowSolver<dim,nspecies, nstate>::run_unsteady() const
+{
+    print_task_header("Unsteady Flow");
+
+    // Initializing restart related variables
+#if PHILIP_DIM>1
+    double current_desired_time_for_output_restart_files_every_dt_time_intervals = ode_solver->current_time;
+    unsigned int current_restart_file_number = 1;
+    if(flow_solver_param.output_restart_files == true) {
+        if(flow_solver_param.output_restart_files_every_dt_time_intervals > 0.0) {
+            while(current_desired_time_for_output_restart_files_every_dt_time_intervals <= ode_solver->current_time) {
+                current_desired_time_for_output_restart_files_every_dt_time_intervals += flow_solver_param.output_restart_files_every_dt_time_intervals;
+            }
+        }
+    }
+    if(flow_solver_param.restart_computation_from_file == true) {
+        current_restart_file_number = flow_solver_param.restart_file_index + 1;
+    }
+#endif
+
+    // Initialize the time at which we write the unsteady data table
+    double current_desired_time_for_write_unsteady_data_table_file_every_dt_time_intervals = ode_solver->current_time;
+    if(flow_solver_param.write_unsteady_data_table_file_every_dt_time_intervals > 0.0) {
+        while(current_desired_time_for_write_unsteady_data_table_file_every_dt_time_intervals <= ode_solver->current_time) {
+            current_desired_time_for_write_unsteady_data_table_file_every_dt_time_intervals += flow_solver_param.write_unsteady_data_table_file_every_dt_time_intervals;
+        }
+    }
+
+    // Initialize time step
+    double time_step = initialize_unsteady_time_step();
 
     // dealii::TableHandler and data at initial time
     print_task_header("Unsteady Data Setup");
