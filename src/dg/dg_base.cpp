@@ -1166,9 +1166,9 @@ typename std::enable_if<!std::is_same<adtype, double>::value,void>::type
         using grad = typename TH::GradientValue;
         AssertDimension(th.getInputSize(), 1);
         AssertDimension(th.getOutputSize(), n_soln_dofs);
-        std::vector<grad> seed(th.getInputSize(), Gradient{});
+        std::vector<grad> seed(th.getInputSize(), grad{});
         seed[0][0] = 1.0;
-        std::vector<grad> tangent(th.getOutputSize(), Gradient{});
+        std::vector<grad> tangent(th.getOutputSize(), grad{});
         th.evalForward(seed.data(), tangent.data());
 
         for (unsigned int itest=0; itest<n_soln_dofs; ++itest) {
@@ -1456,9 +1456,9 @@ typename std::enable_if<!std::is_same<adtype, double>::value,void>::type
         using grad = typename TH::GradientValue;
         AssertDimension(th.getInputSize(), 1);
         AssertDimension(th.getOutputSize(), n_soln_dofs);
-        std::vector<grad> seed(th.getInputSize(), Gradient{});
+        std::vector<grad> seed(th.getInputSize(), grad{});
         seed[0][0] = 1.0;
-        std::vector<grad> tangent(th.getOutputSize(), Gradient{});
+        std::vector<grad> tangent(th.getOutputSize(), grad{});
         th.evalForward(seed.data(), tangent.data());
 
         for (unsigned int itest=0; itest<n_soln_dofs; ++itest) {
@@ -1963,9 +1963,9 @@ typename std::enable_if<!std::is_same<adtype, double>::value,void>::type
         using grad = typename TH::GradientValue;
         AssertDimension(th.getInputSize(), 1);
         AssertDimension(th.getOutputSize(), n_soln_dofs_int+n_soln_dofs_ext);
-        std::vector<grad> seed(th.getInputSize(), Gradient{});
+        std::vector<grad> seed(th.getInputSize(), grad{});
         seed[0][0] = 1.0;
-        std::vector<grad> tangent(th.getOutputSize(), Gradient{});
+        std::vector<grad> tangent(th.getOutputSize(), grad{});
         th.evalForward(seed.data(), tangent.data());
 
         for (unsigned int itest=0; itest<n_soln_dofs_int; ++itest) {
