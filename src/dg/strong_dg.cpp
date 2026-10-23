@@ -558,7 +558,7 @@ void DGStrong<dim,nspecies,nstate,real,MeshType>::assemble_auxiliary_residual(co
                 this->template assemble_cell_residual_and_ad_derivatives<codi_HessianComputationType>(
                     soln_cell,
                     metric_cell,
-                    compute_dRdW, compute_dRdX, compute_d2R,
+                    compute_dRdW, compute_dRdX, compute_d2R, false,
                     fe_values_collection_volume,
                     fe_values_collection_face_int,
                     fe_values_collection_face_ext,
@@ -585,7 +585,7 @@ void DGStrong<dim,nspecies,nstate,real,MeshType>::assemble_auxiliary_residual(co
                 this->template assemble_cell_residual_and_ad_derivatives<codi_JacobianComputationType>(
                     soln_cell,
                     metric_cell,
-                    compute_dRdW, compute_dRdX, compute_d2R,
+                    compute_dRdW, compute_dRdX, compute_d2R, false,
                     fe_values_collection_volume,
                     fe_values_collection_face_int,
                     fe_values_collection_face_ext,
@@ -612,7 +612,7 @@ void DGStrong<dim,nspecies,nstate,real,MeshType>::assemble_auxiliary_residual(co
                 this->template assemble_cell_residual_and_ad_derivatives<double>(
                     soln_cell,
                     metric_cell,
-                    compute_dRdW, compute_dRdX, compute_d2R,
+                    compute_dRdW, compute_dRdX, compute_d2R, false,
                     fe_values_collection_volume,
                     fe_values_collection_face_int,
                     fe_values_collection_face_ext,

@@ -183,7 +183,8 @@ public:
     /** Must be done after setting the mesh and before assembling the system. */
     virtual void allocate_system (const bool compute_dRdW = true, 
                                   const bool compute_dRdX = true, 
-                                  const bool compute_d2R = true);
+                                  const bool compute_d2R = true,
+                                  const bool compute_dRdW_matrix_free = true);
 
 private:
     /// Allocates the second derivatives.
@@ -571,7 +572,7 @@ public:
      *
      */
     //void assemble_residual_dRdW ();
-    void assemble_residual (const bool compute_dRdW=false, const bool compute_dRdW_matrix_free=false, const bool compute_dRdX=false, const bool compute_d2R=false, const double CFL_mass = 0.0);
+    void assemble_residual (const bool compute_dRdW=false, const bool compute_dRdX=false, const bool compute_d2R=false, const double CFL_mass = 0.0, const bool compute_dRdW_matrix_free=false);
 
     /// Used in assemble_residual().
     /** IMPORTANT: This does not fully compute the cell residual since it might not
@@ -582,7 +583,7 @@ public:
     void assemble_cell_residual_and_ad_derivatives (
         const dealii::TriaActiveIterator<dealii::DoFCellAccessor<dim, dim, false>> &current_cell,
         const dealii::TriaActiveIterator<dealii::DoFCellAccessor<dim, dim, false>> &current_metric_cell,
-        const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R,
+        const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool compute_dRdW_matrix_free,
         dealii::hp::FEValues<dim,dim>                                      &fe_values_collection_volume,
         dealii::hp::FEFaceValues<dim,dim>                                  &fe_values_collection_face_int,
         dealii::hp::FEFaceValues<dim,dim>                                  &fe_values_collection_face_ext,
@@ -624,7 +625,7 @@ public:
         std::vector<real>                                      &local_rhs_cell,
         dealii::Tensor<1,dim,std::vector<real>>                &local_auxiliary_RHS,
         const bool                                             compute_auxiliary_right_hand_side,
-        const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R);
+        const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool compute_dRdW_matrix_free);
     
     /// Computes the volume term of the cell.
     void assemble_volume_codi_taped_derivatives_ad(
@@ -648,7 +649,7 @@ public:
         std::vector<real>                                      &local_rhs_cell,
         dealii::Tensor<1,dim,std::vector<real>>                &local_auxiliary_RHS,
         const bool                                             compute_auxiliary_right_hand_side,
-        const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R);
+        const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool compute_dRdW_matrix_free);
 
     /// Computes boundary term of the cell if the cell has a face at the boundary and performs automatic differentiation.
     template <typename adtype>
@@ -674,7 +675,7 @@ public:
         std::vector<real>                                      &local_rhs_cell,
         dealii::Tensor<1,dim,std::vector<real>>                &local_auxiliary_RHS,
         const bool                                             compute_auxiliary_right_hand_side,
-        const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R);
+        const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool compute_dRdW_matrix_free);
     
     /// Computes boundary term of the cell if the cell has a face at the boundary.
     void assemble_boundary_codi_taped_derivatives_ad(
@@ -698,7 +699,7 @@ public:
         std::vector<real>                                      &local_rhs_cell,
         dealii::Tensor<1,dim,std::vector<real>>                &local_auxiliary_RHS,
         const bool                                             compute_auxiliary_right_hand_side,
-        const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R);
+        const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool compute_dRdW_matrix_free);
 
     /// Computes face term of the cell and performs automatic differentiation.
     template <typename adtype>
@@ -741,7 +742,7 @@ public:
         dealii::LinearAlgebra::distributed::Vector<double>  &rhs,
         std::array<dealii::LinearAlgebra::distributed::Vector<double>,dim> &rhs_aux,
         const bool compute_auxiliary_right_hand_side,
-        const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R,
+        const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool compute_dRdW_matrix_free,
         const bool is_a_subface = false,
         const unsigned int neighbor_i_subface = 0);
     
@@ -784,7 +785,7 @@ public:
         dealii::LinearAlgebra::distributed::Vector<double>  &rhs,
         std::array<dealii::LinearAlgebra::distributed::Vector<double>,dim> &rhs_aux,
         const bool compute_auxiliary_right_hand_side,
-        const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R,
+        const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool compute_dRdW_matrix_free,
         const bool is_a_subface = false,
         const unsigned int neighbor_i_subface = 0);
    

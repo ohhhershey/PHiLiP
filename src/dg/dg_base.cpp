@@ -1034,7 +1034,6 @@ typename std::enable_if<!std::is_same<adtype, double>::value,void>::type
         th.startRecording();
     }
     adtype t = 0.0;
-    th.registerInput(t);
     if (compute_dRdW_matrix_free){
         th.registerInput(t);
     }
@@ -1044,7 +1043,7 @@ typename std::enable_if<!std::is_same<adtype, double>::value,void>::type
         const real val = this->solution(soln_dofs_indices[idof]);
         local_solution[idof] = val;
         if (compute_dRdW_matrix_free) {
-            const real  v = this->Jacobian_direction(global_dof);
+            const real  v = this->Jacobian_direction(soln_dofs_indices[idof]);
             local_solution[idof] = val+ v*t;
         } else {
             local_solution[idof] = val;
@@ -1163,19 +1162,27 @@ typename std::enable_if<!std::is_same<adtype, double>::value,void>::type
     }
 
     if (compute_dRdW_matrix_free){
-        using grad = typename TH::GradientValue;
+        // using grad = typename TH::GradientValue;
         AssertDimension(th.getInputSize(), 1);
         AssertDimension(th.getOutputSize(), n_soln_dofs);
-        std::vector<grad> seed(th.getInputSize(), grad{});
-        seed[0][0] = 1.0;
-        std::vector<grad> tangent(th.getOutputSize(), grad{});
-        th.evalForward(seed.data(), tangent.data());
+        // std::vector<grad> seed(th.getInputSize(), grad{});
+        // seed[0][0] = 1.0;
+        // std::vector<grad> tangent(th.getOutputSize(), grad{});
+        // th.evalForward(seed.data(), tangent.data());
 
+        // for (unsigned int itest=0; itest<n_soln_dofs; ++itest) {
+        //     const double Jv = getValue(tangent[itest][0]);
+        //     AssertIsFinite(Jv);
+        //     this->Jacobian_times_vector(soln_dofs_indices[itest]) += Jv;
+        // }
+        typename TH::JacobianType& jac = th.createJacobian();
+        th.evalJacobian(jac);
         for (unsigned int itest=0; itest<n_soln_dofs; ++itest) {
-            const double Jv = getValue(tangent[itest][0]);
+            const double Jv = jac(itest,0);
             AssertIsFinite(Jv);
             this->Jacobian_times_vector(soln_dofs_indices[itest]) += Jv;
         }
+        th.deleteJacobian(jac);
     }
     
     if (compute_dRdW) {
@@ -1262,6 +1269,8 @@ typename std::enable_if<!std::is_same<adtype, double>::value,void>::type
     {
         tape.deactivateValue(local_metric_coeff_int[idof]);
     }
+
+    // decativate t 
    
 }
 
@@ -1312,7 +1321,6 @@ typename std::enable_if<!std::is_same<adtype, double>::value,void>::type
         th.startRecording();
     }
     adtype t = 0.0;
-    th.registerInput(t);
     if (compute_dRdW_matrix_free){
         th.registerInput(t);
     }
@@ -1453,19 +1461,28 @@ typename std::enable_if<!std::is_same<adtype, double>::value,void>::type
     }
 
     if (compute_dRdW_matrix_free){
-        using grad = typename TH::GradientValue;
-        AssertDimension(th.getInputSize(), 1);
-        AssertDimension(th.getOutputSize(), n_soln_dofs);
-        std::vector<grad> seed(th.getInputSize(), grad{});
-        seed[0][0] = 1.0;
-        std::vector<grad> tangent(th.getOutputSize(), grad{});
-        th.evalForward(seed.data(), tangent.data());
+        // using grad = typename TH::GradientValue;
+        // AssertDimension(th.getInputSize(), 1);
+        // AssertDimension(th.getOutputSize(), n_soln_dofs);
+        // std::vector<grad> seed(th.getInputSize(), grad{});
+        // seed[0][0] = 1.0;
+        // std::vector<grad> tangent(th.getOutputSize(), grad{});
+        // th.evalForward(seed.data(), tangent.data());
 
-        for (unsigned int itest=0; itest<n_soln_dofs; ++itest) {
-            const double Jv = getValue(tangent[itest][0]);
+        // for (unsigned int itest=0; itest<n_soln_dofs; ++itest) {
+        //     const double Jv = getValue(tangent[itest][0]);
+        //     AssertIsFinite(Jv);
+        //     this->Jacobian_times_vector(soln_dofs_indices[itest]) += Jv;
+        // }
+        
+        typename TH::JacobianType& jac = th.createJacobian();
+        th.evalJacobian(jac);
+         for (unsigned int idof = 0; idof < n_soln_dofs; ++idof) {
+            const double Jv = getValue(jac(idof,0));
             AssertIsFinite(Jv);
-            this->Jacobian_times_vector(soln_dofs_indices[itest]) += Jv;
+            this->Jacobian_times_vector[soln_dofs_indices[idof]] += Jv;
         }
+        th.deleteJacobian(jac);
     }
 
     if (compute_dRdW) {
@@ -1726,8 +1743,12 @@ typename std::enable_if<!std::is_same<adtype, double>::value,void>::type
     using TH = codi::TapeHelper<adtype>;
     TH th;
     typename adtype::TapeType &tape =  adtype::getGlobalTape();
-    if (compute_dRdW || compute_dRdX || compute_d2R) {
+    if (compute_dRdW || compute_dRdX || compute_d2R || compute_dRdW_matrix_free) {
         th.startRecording();
+    }
+    adtype t = 0.0;
+    if (compute_dRdW_matrix_free){
+        th.registerInput(t);
     }
     
     std::vector<adtype> soln_coeff_int(fe_int.dofs_per_cell);
@@ -1960,24 +1981,20 @@ typename std::enable_if<!std::is_same<adtype, double>::value,void>::type
     }
     
     if (compute_dRdW_matrix_free){
-        using grad = typename TH::GradientValue;
+        // using grad = typename TH::GradientValue;
         AssertDimension(th.getInputSize(), 1);
         AssertDimension(th.getOutputSize(), n_soln_dofs_int+n_soln_dofs_ext);
-        std::vector<grad> seed(th.getInputSize(), grad{});
-        seed[0][0] = 1.0;
-        std::vector<grad> tangent(th.getOutputSize(), grad{});
-        th.evalForward(seed.data(), tangent.data());
-
-        for (unsigned int itest=0; itest<n_soln_dofs_int; ++itest) {
-            const double Jv_int = getValue(tangent[itest][0]);
-            AssertIsFinite(Jv_int);
-            this->Jacobian_times_vector(soln_dofs_indices_int[itest]) += Jv_int;
+        typename TH::JacobianType& jac = th.createJacobian();
+        th.evalJacobian(jac);
+        for (unsigned int idof = 0; idof < n_soln_dofs_int; ++idof) {
+            Jacobian_times_vector[soln_dofs_indices_int[idof]] += jac(idof,0);
+            AssertIsFinite(Jacobian_times_vector[soln_dofs_indices_int[idof]]);
         }
-        for (unsigned int itest=0; itest<n_soln_dofs_ext; ++itest) {
-            const double Jv_ext = getValue(tangent[n_soln_dofs_int+itest][0]);
-            AssertIsFinite(Jv_ext);
-            this->Jacobian_times_vector(soln_dofs_indices_ext[itest]) += Jv_ext;
+        for (unsigned int idof = 0; idof < n_soln_dofs_ext; ++idof) {
+            Jacobian_times_vector[soln_dofs_indices_ext[idof]] += jac(n_soln_dofs_int+idof,0);
+            AssertIsFinite(Jacobian_times_vector[soln_dofs_indices_ext[idof]]);
         }
+        th.deleteJacobian(jac);
     }
     if (compute_dRdW || compute_dRdX) {
         typename TH::JacobianType& jac = th.createJacobian();
@@ -2257,7 +2274,7 @@ void DGBase<dim,nspecies,real,MeshType>::assemble_face_codi_taped_derivatives_ad
     dealii::LinearAlgebra::distributed::Vector<double>  &rhs,
     std::array<dealii::LinearAlgebra::distributed::Vector<double>,dim> &rhs_aux,
     const bool compute_auxiliary_right_hand_side,
-    const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool compute_dRdW_matrix_free,
+    const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool /*compute_dRdW_matrix_free*/,
     const bool is_a_subface,
     const unsigned int neighbor_i_subface)
 {
@@ -2703,16 +2720,16 @@ void DGBase<dim,nspecies,real,MeshType>::reinit_operators_for_cell_residual_loop
 }
 
 template <int dim, int nspecies, typename real, typename MeshType>
-void DGBase<dim,nspecies,real,MeshType>::assemble_residual (const bool compute_dRdW, const bool compute_dRdW_matrix_free, const bool compute_dRdX, const bool compute_d2R, const double CFL_mass)
+void DGBase<dim,nspecies,real,MeshType>::assemble_residual (const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const double CFL_mass, const bool compute_dRdW_matrix_free)
 {
     dealii::deal_II_exceptions::disable_abort_on_exception(); // Allows us to catch negative Jacobians.
     AssertThrow(
         !compute_dRdW_matrix_free ||
-            !(compute_dRdW || compute_dRdX || compute_d2R),
+            !(compute_dRdW || compute_dRdX || compute_d2R ),
         dealii::ExcMessage("Jv must be requested separately from other derivatives."));
     AssertThrow(
         !compute_dRdW_matrix_free || CFL_mass == 0.0,
-        dealii::ExcMessage("This Jv path returns the spatial residual derivative."));
+        dealii::ExcMessage("This Jv path returns the spatial residual derivative.")); 
     Assert( !(compute_dRdW && compute_dRdX)
         &&  !(compute_dRdW && compute_d2R)
         &&  !(compute_dRdX && compute_d2R)
@@ -2819,7 +2836,7 @@ void DGBase<dim,nspecies,real,MeshType>::assemble_residual (const bool compute_d
     }
     right_hand_side = 0;
     if (compute_dRdW_matrix_free){
-        Jacobian_times_vector.zero_out_ghost_values();
+        Jacobian_times_vector.zero_out_ghosts();
         Jacobian_times_vector = 0.0;
         Jacobian_direction.update_ghost_values();
     }
@@ -2888,7 +2905,7 @@ void DGBase<dim,nspecies,real,MeshType>::assemble_residual (const bool compute_d
                 assemble_cell_residual_and_ad_derivatives<codi_HessianComputationType>(
                     soln_cell,
                     metric_cell,
-                    compute_dRdW, compute_dRdX, compute_d2R,
+                    compute_dRdW, compute_dRdX, compute_d2R, false,
                     fe_values_collection_volume,
                     fe_values_collection_face_int,
                     fe_values_collection_face_ext,
@@ -2915,7 +2932,7 @@ void DGBase<dim,nspecies,real,MeshType>::assemble_residual (const bool compute_d
                 assemble_cell_residual_and_ad_derivatives<codi_JacobianComputationType>(
                     soln_cell,
                     metric_cell,
-                    compute_dRdW, compute_dRdX, compute_d2R,
+                    compute_dRdW, compute_dRdX, compute_d2R, compute_dRdW_matrix_free,
                     fe_values_collection_volume,
                     fe_values_collection_face_int,
                     fe_values_collection_face_ext,
@@ -2942,7 +2959,7 @@ void DGBase<dim,nspecies,real,MeshType>::assemble_residual (const bool compute_d
                 assemble_cell_residual_and_ad_derivatives<double>(
                     soln_cell,
                     metric_cell,
-                    compute_dRdW, compute_dRdX, compute_d2R,
+                    compute_dRdW, compute_dRdX, compute_d2R, false, 
                     fe_values_collection_volume,
                     fe_values_collection_face_int,
                     fe_values_collection_face_ext,
@@ -3026,6 +3043,10 @@ void DGBase<dim,nspecies,real,MeshType>::assemble_residual (const bool compute_d
         d2RdWdW.compress(dealii::VectorOperation::add);
         d2RdXdX.compress(dealii::VectorOperation::add);
         d2RdWdX.compress(dealii::VectorOperation::add);
+    }
+    if ( compute_dRdW_matrix_free ){
+        Jacobian_times_vector.compress(dealii::VectorOperation::add);
+        Jacobian_times_vector.update_ghost_values();
     }
     //if ( compute_dRdW ) system_matrix.compress(dealii::VectorOperation::insert);
     //system_matrix.print(std::cout);
@@ -3640,10 +3661,6 @@ void DGBase<dim,nspecies,real,MeshType>::allocate_system (
     solution.add(std::numeric_limits<real>::lowest());
     //right_hand_side.reinit(locally_owned_dofs, mpi_communicator);
     right_hand_side.reinit(locally_owned_dofs, ghost_dofs, mpi_communicator);
-    Jacobian_direction.reinit(locally_owned_dofs, ghost_dofs, mpi_communicator);
-    Jacobian_times_vector.reinit(locally_owned_dofs, ghost_dofs, mpi_communicator);
-    Jacobian_direction = 0.0;
-    Jacobian_times_vector = 0.0;
     right_hand_side.add(1.0); // Avoid 0 initial residual for output and logarithmic visualization.
     //time averaged solution
     if(all_parameters->flow_solver_param.do_compute_time_averaged_solution){
@@ -3704,6 +3721,13 @@ void DGBase<dim,nspecies,real,MeshType>::allocate_system (
         solution_dRdW *= 0.0;
         volume_nodes_dRdW.reinit(high_order_grid->volume_nodes);
         volume_nodes_dRdW *= 0.0;
+    }
+        
+    if (compute_dRdW_matrix_free){
+        Jacobian_direction.reinit(locally_owned_dofs, ghost_dofs, mpi_communicator);
+        Jacobian_times_vector.reinit(locally_owned_dofs, ghost_dofs, mpi_communicator);
+        Jacobian_direction = 0.0;
+        Jacobian_times_vector = 0.0;
     }
 
     CFL_mass_dRdW = 0.0;
@@ -4817,7 +4841,7 @@ template void
 DGBase<PHILIP_DIM,PHILIP_SPECIES,double,dealii::Triangulation<PHILIP_DIM>>::assemble_cell_residual_and_ad_derivatives<codi_JacobianComputationType> (
     const dealii::TriaActiveIterator<dealii::DoFCellAccessor<PHILIP_DIM, PHILIP_DIM, false>> &current_cell,
     const dealii::TriaActiveIterator<dealii::DoFCellAccessor<PHILIP_DIM, PHILIP_DIM, false>> &current_metric_cell,
-    const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R,
+    const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool compute_dRdW_matrix_free,
     dealii::hp::FEValues<PHILIP_DIM,PHILIP_DIM>                                      &fe_values_collection_volume,
     dealii::hp::FEFaceValues<PHILIP_DIM,PHILIP_DIM>                                  &fe_values_collection_face_int,
     dealii::hp::FEFaceValues<PHILIP_DIM,PHILIP_DIM>                                  &fe_values_collection_face_ext,
@@ -4839,7 +4863,7 @@ template void
 DGBase<PHILIP_DIM,PHILIP_SPECIES,double,dealii::Triangulation<PHILIP_DIM>>::assemble_cell_residual_and_ad_derivatives<codi_HessianComputationType> (
     const dealii::TriaActiveIterator<dealii::DoFCellAccessor<PHILIP_DIM, PHILIP_DIM, false>> &current_cell,
     const dealii::TriaActiveIterator<dealii::DoFCellAccessor<PHILIP_DIM, PHILIP_DIM, false>> &current_metric_cell,
-    const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R,
+    const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool compute_dRdW_matrix_free,
     dealii::hp::FEValues<PHILIP_DIM,PHILIP_DIM>                                      &fe_values_collection_volume,
     dealii::hp::FEFaceValues<PHILIP_DIM,PHILIP_DIM>                                  &fe_values_collection_face_int,
     dealii::hp::FEFaceValues<PHILIP_DIM,PHILIP_DIM>                                  &fe_values_collection_face_ext,
@@ -4860,7 +4884,7 @@ template void
 DGBase<PHILIP_DIM,PHILIP_SPECIES,double,dealii::parallel::distributed::Triangulation<PHILIP_DIM>>::assemble_cell_residual_and_ad_derivatives<codi_JacobianComputationType> (
     const dealii::TriaActiveIterator<dealii::DoFCellAccessor<PHILIP_DIM, PHILIP_DIM, false>> &current_cell,
     const dealii::TriaActiveIterator<dealii::DoFCellAccessor<PHILIP_DIM, PHILIP_DIM, false>> &current_metric_cell,
-    const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R,
+    const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool compute_dRdW_matrix_free,
     dealii::hp::FEValues<PHILIP_DIM,PHILIP_DIM>                                      &fe_values_collection_volume,
     dealii::hp::FEFaceValues<PHILIP_DIM,PHILIP_DIM>                                  &fe_values_collection_face_int,
     dealii::hp::FEFaceValues<PHILIP_DIM,PHILIP_DIM>                                  &fe_values_collection_face_ext,
@@ -4882,7 +4906,7 @@ template void
 DGBase<PHILIP_DIM,PHILIP_SPECIES,double,dealii::parallel::distributed::Triangulation<PHILIP_DIM>>::assemble_cell_residual_and_ad_derivatives<codi_HessianComputationType> (
     const dealii::TriaActiveIterator<dealii::DoFCellAccessor<PHILIP_DIM, PHILIP_DIM, false>> &current_cell,
     const dealii::TriaActiveIterator<dealii::DoFCellAccessor<PHILIP_DIM, PHILIP_DIM, false>> &current_metric_cell,
-    const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R,
+    const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool compute_dRdW_matrix_free,
     dealii::hp::FEValues<PHILIP_DIM,PHILIP_DIM>                                      &fe_values_collection_volume,
     dealii::hp::FEFaceValues<PHILIP_DIM,PHILIP_DIM>                                  &fe_values_collection_face_int,
     dealii::hp::FEFaceValues<PHILIP_DIM,PHILIP_DIM>                                  &fe_values_collection_face_ext,
@@ -4906,7 +4930,7 @@ template void
 DGBase<PHILIP_DIM,PHILIP_SPECIES,double,dealii::parallel::shared::Triangulation<PHILIP_DIM>>::assemble_cell_residual_and_ad_derivatives<codi_JacobianComputationType> (
     const dealii::TriaActiveIterator<dealii::DoFCellAccessor<PHILIP_DIM, PHILIP_DIM, false>> &current_cell,
     const dealii::TriaActiveIterator<dealii::DoFCellAccessor<PHILIP_DIM, PHILIP_DIM, false>> &current_metric_cell,
-    const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R,
+    const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool compute_dRdW_matrix_free,
     dealii::hp::FEValues<PHILIP_DIM,PHILIP_DIM>                                      &fe_values_collection_volume,
     dealii::hp::FEFaceValues<PHILIP_DIM,PHILIP_DIM>                                  &fe_values_collection_face_int,
     dealii::hp::FEFaceValues<PHILIP_DIM,PHILIP_DIM>                                  &fe_values_collection_face_ext,
@@ -4928,7 +4952,7 @@ template void
 DGBase<PHILIP_DIM,PHILIP_SPECIES,double,dealii::parallel::shared::Triangulation<PHILIP_DIM>>::assemble_cell_residual_and_ad_derivatives<codi_HessianComputationType> (
     const dealii::TriaActiveIterator<dealii::DoFCellAccessor<PHILIP_DIM, PHILIP_DIM, false>> &current_cell,
     const dealii::TriaActiveIterator<dealii::DoFCellAccessor<PHILIP_DIM, PHILIP_DIM, false>> &current_metric_cell,
-    const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R,
+    const bool compute_dRdW, const bool compute_dRdX, const bool compute_d2R, const bool compute_dRdW_matrix_free,
     dealii::hp::FEValues<PHILIP_DIM,PHILIP_DIM>                                      &fe_values_collection_volume,
     dealii::hp::FEFaceValues<PHILIP_DIM,PHILIP_DIM>                                  &fe_values_collection_face_int,
     dealii::hp::FEFaceValues<PHILIP_DIM,PHILIP_DIM>                                  &fe_values_collection_face_ext,
