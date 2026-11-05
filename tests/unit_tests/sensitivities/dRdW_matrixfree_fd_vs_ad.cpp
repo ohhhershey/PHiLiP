@@ -30,7 +30,8 @@ using ModelType = PHiLiP::Parameters::AllParameters::ModelType;
 
 const double TOLERANCE = 1E-5;
 
-/** This test checks that dRdW evaluated using automatic differentiation
+
+/** This test checks that dRdW evaluated using matrix free automatic differentiation
  *  matches with the results obtained using finite-difference.
  */
 template<int dim, int nspecies, int nstate>
@@ -83,14 +84,6 @@ int test (
     }
     dg->solution.update_ghost_values();
     
-    // removed for now, since we are not using it
-    // dealii::TrilinosWrappers::SparseMatrix dRdW_fd;
-    // dealii::SparsityPattern sparsity_pattern = dg->get_dRdW_sparsity_pattern ();
-
-    // const dealii::IndexSet &row_parallel_partitioning = dg->locally_owned_dofs;
-    // const dealii::IndexSet &col_parallel_partitioning = dg->locally_owned_dofs;
-    // dRdW_fd.reinit(row_parallel_partitioning, col_parallel_partitioning, sparsity_pattern, MPI_COMM_WORLD);
-
     const double eps = 1e-5;
     solutionVector old_solution = dg->solution;
     solutionVector v(old_solution);
@@ -134,28 +127,11 @@ int test (
     pcout << "(dRdW_FD - dRdW_AD) L1-norm = " << fd_lone_norm << std::endl;
     pcout << "(dRdW_FD - dRdW_AD) Linf-norm = " << fd_linf_norm << std::endl;
 
-    if (fd_lone_norm > TOLERANCE)
-    {
+    if (!std::isfinite(fd_lone_norm) ||
+        !std::isfinite(fd_linf_norm) ||
+        fd_lone_norm > TOLERANCE) {
         return 1;
     }
-
-    // if (diff_lone_norm > TOLERANCE) 
-    // {
-    //     const unsigned int n_digits = 5;
-    //     const unsigned int n_spacing = 7+n_digits;
-    //     dealii::ConditionalOStream pcout(std::cout, dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD)==0);
-    //     dealii::FullMatrix<double> fullA(dRdW_fd.m(),dRdW_fd.n());
-    //     fullA.copy_from(dRdW_fd);
-    //     pcout<<"Dense matrix from FD-AD:"<<std::endl;
-
-    //     std::string path = "./FD_minus_AD_matrix.dat";
-    //     std::ofstream outfile (path,std::ofstream::out);
-
-    //     if (pcout.is_active()) fullA.print_formatted(outfile, n_digits, true, n_spacing, "0", 1., 0.);
-
-    //     return 1;
-    // }
-
     return 0;
 }
 
